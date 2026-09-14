@@ -1,0 +1,23 @@
+default: &default
+  adapter: mysql2
+  encoding: utf8mb4
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  username: <%= ENV.fetch("ALMS_DB_USERNAME", "root") %>
+  password: <%= ENV.fetch("ALMS_DB_PASSWORD", "") %>
+  host: <%= ENV.fetch("ALMS_DB_HOST", "127.0.0.1") %>
+  port: <%= ENV.fetch("ALMS_DB_PORT", 3306) %>
+
+development:
+  <<: *default
+  database: almsdb_development
+
+test:
+  <<: *default
+  database: almsdb_test
+
+# Render (and most free managed-DB hosts) provide Postgres, not MySQL, and
+# inject a single DATABASE_URL env var (postgres://user:pass@host:port/db)
+# rather than separate host/user/password vars. `url:` here tells Rails to
+# parse that instead of using the mysql2 settings above.
+production:
+  url: <%= ENV["DATABASE_URL"] %>

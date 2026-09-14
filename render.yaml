@@ -1,0 +1,52 @@
+databases:
+  # Free Render Postgres. Note: free databases expire 30 days after
+  # creation (14-day grace period to upgrade before deletion) — fine for a
+  # demo/test link, not for anything long-term. Upgrade the plan on
+  # Render's dashboard before then if you want to keep this data.
+  - name: alms-db-skallamadi
+    databaseName: almsdb_production
+    plan: free
+
+services:
+  # Rails API backend
+  - type: web
+    name: alms-backend-skallamadi
+    runtime: ruby
+    plan: free
+    rootDir: backend
+    buildCommand: bundle install
+    preDeployCommand: bundle exec rails db:migrate && bundle exec rails db:seed
+    startCommand: bundle exec rails server -b 0.0.0.0 -p $PORT
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: alms-db-skallamadi
+          property: connectionString
+      # Must match the frontend static site's actual URL below. If Render
+      # had to rename either service due to a name clash, update this to
+      # match the real assigned URL and redeploy.
+      - key: ALMS_FRONTEND_ORIGIN
+        value: https://alms-frontend-skallamadi.onrender.com
+
+  # React (Vite) frontend, built and served as static files
+  - type: web
+    name: alms-frontend-skallamadi
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      # Must match the backend web service's actual URL above — same
+      # caveat about name clashes applies.
+      - key: VITE_API_BASE_URL
+        value: https://alms-backend-skallamadi.onrender.com/api/v1
+    routes:
+      # React Router uses client-side routing (BrowserRouter) — without
+      # this, refreshing on /dashboard or /signin directly would 404.
+      - type: rewrite
+        source: /*
+        destination: /index.html
