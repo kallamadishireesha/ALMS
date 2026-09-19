@@ -13,7 +13,7 @@ puts "Seeding branches..."
 end
 
 puts "Seeding employee..."
-agent = Employee.find_or_create_by!(employee_id: "EMP-2201") do |e|
+agent = Employee.find_or_create_by!(employee_id: "2201") do |e|
   e.name = "Arjun Mehta"
   e.email = "arjun.mehta@example.com"
   e.password = "password123"
@@ -37,4 +37,4 @@ leads.each do |attrs|
   end
 end
 
-puts "Done. Sign in with employee_id=EMP-2201 password=password123"
+puts "Done. Sign in with employee_id=2201 password=password123"
