@@ -17,4 +17,9 @@ Rails.application.configure do
   # protection as development — see the ngrok note in development.rb.
   config.hosts << /.*\.onrender\.com/
   config.hosts << ENV["RENDER_EXTERNAL_HOSTNAME"] if ENV["RENDER_EXTERNAL_HOSTNAME"]
+
+  # Allow Railway's own domains (yourapp.up.railway.app / *.railway.app).
+  config.hosts << /.*\.up\.railway\.app/
+  config.hosts << /.*\.railway\.app/
+  config.hosts << ENV["RAILWAY_PUBLIC_DOMAIN"] if ENV["RAILWAY_PUBLIC_DOMAIN"]
 end

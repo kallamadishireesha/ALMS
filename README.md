@@ -10,12 +10,13 @@ track gold-loan leads.
 ## Data model
 - **clusters**: `name`, `location`
 - **employees**: `name`, `employee_id` (unique login), `email`, `password_digest`, `role` (support_agent/admin/user), `cluster_id`
-- **leads**: `customer_name`, `phone_number`, `gold_quantity`, `amount`, `lead_source` (online_call / customer_referral / walk_in), `lead_type` (new_lead / follow_up / take_over / gl), `status` (new / follow_up / pending_verification / accepted / rejected), `employee_id`
+- **leads**: `customer_name`, `phone_number`, `gold_quantity`, `amount`, `lead_source` (online_call / customer_referral / walk_in), `lead_type` (new_lead / follow_up / take_over), `status` (new / follow_up / pending_verification / accepted / rejected), `employee_id`
 
-`lead_type: gl` was added beyond the 3 you named (new lead, follow-up, take
-over) because the dashboard mock showed a "GL" row/tab — treated here as a
-"Genuine Lead" fast-track bucket. Rename or drop it in
-`app/models/lead.rb` if that's not what you meant.
+There used to be a `lead_type: gl` ("Genuine Lead") bucket beyond the 3
+named types, added because the dashboard mock showed a "GL" row/tab. It's
+since been removed (see `db/migrate/20260101000005_reassign_gl_lead_type.rb`,
+which reassigns any existing `gl` leads to `take_over` before the enum
+value disappears).
 
 `genuine_lead_percent` and `lead_quality_score` on the dashboard are
 placeholder formulas (see comment in `app/controllers/api/v1/dashboard_controller.rb`)
@@ -54,7 +55,7 @@ the seeded account above.
 - Sign up (name, email, cluster, employee ID, password) → creates a
   `support_agent` employee, returns a JWT
 - Sign in with employee ID + password → JWT
-- Dashboard: stat cards, tab bar (New Lead / Follow-up / Take Over / GL / My
+- Dashboard: stat cards, tab bar (New Lead / Follow-up / Take Over / My
   Leads / Lead Performance), "Add Lead" modal, recent-activity table with
   masked phone numbers
 - Leads scoped per signed-in agent (an agent only sees their own leads)

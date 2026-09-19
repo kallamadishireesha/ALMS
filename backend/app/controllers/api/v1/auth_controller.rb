@@ -5,12 +5,15 @@ module Api
 
       # Roles a person is allowed to grant themselves at signup. admin/user
       # are deliberately excluded — those aren't self-service roles.
-      SELF_SIGNUP_ROLES = %w[support_agent manager].freeze
+      SELF_SIGNUP_ROLES = %w[support_agent manager cbm].freeze
 
       # POST /api/v1/auth/signup
       def signup
         cluster = Cluster.find_by(id: signup_params[:cluster_id])
         return render json: { error: "Invalid cluster" }, status: :unprocessable_entity unless cluster
+
+        branch = cluster.branches.find_by(id: signup_params[:branch_id])
+        return render json: { error: "Invalid branch" }, status: :unprocessable_entity unless branch
 
         role = signup_params[:role].to_s
         role = "support_agent" unless SELF_SIGNUP_ROLES.include?(role)
@@ -21,6 +24,7 @@ module Api
           password: signup_params[:password],
           password_confirmation: signup_params[:password_confirmation],
           cluster: cluster,
+          branch: branch,
           role: role
         )
 
@@ -50,7 +54,7 @@ module Api
       private
 
       def signup_params
-        params.permit(:name, :email, :cluster_id, :employee_id, :password, :password_confirmation, :role)
+        params.permit(:name, :email, :cluster_id, :branch_id, :employee_id, :password, :password_confirmation, :role)
       end
 
       def auth_payload(employee)
@@ -67,7 +71,8 @@ module Api
           employee_id: employee.employee_id,
           email: employee.email,
           role: employee.role,
-          cluster: { id: employee.cluster.id, name: employee.cluster.name, location: employee.cluster.location }
+          cluster: { id: employee.cluster.id, name: employee.cluster.name, location: employee.cluster.location },
+          branch: employee.branch && { id: employee.branch.id, name: employee.branch.name }
         }
       end
     end

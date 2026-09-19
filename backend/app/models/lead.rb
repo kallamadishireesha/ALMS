@@ -13,12 +13,12 @@ class Lead < ApplicationRecord
   #   follow_up  - still being worked, needs another touch
   #   take_over  - customer has gold deposited at a different branch/bank and is being
   #                moved over to us
-  #   gl         - "Genuine Lead" fast-track bucket shown on the dashboard
+  # (there used to be a `gl` "Genuine Lead" bucket at value 3 — removed;
+  # see the migration that reassigns any leads still using it)
   enum lead_type: {
     new_lead: 0,
     follow_up: 1,
-    take_over: 2,
-    gl: 3
+    take_over: 2
   }
 
   enum status: {

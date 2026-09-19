@@ -7,7 +7,6 @@ const NAV_TABS = [
   { key: "new_lead", label: "New Lead" },
   { key: "follow_up", label: "Follow-up" },
   { key: "take_over", label: "Take Over" },
-  { key: "gl", label: "GL" },
   { key: "my_leads", label: "My Leads" },
   { key: "performance", label: "Lead Performance" },
 ];
@@ -35,10 +34,13 @@ function formatCurrency(amount) {
 export default function Dashboard() {
   const { employee, signout } = useAuth();
   const isManager = employee?.role === "manager";
+  const isCBM = employee?.role === "cbm";
+  const canEditStatus = isManager || isCBM;
   const [stats, setStats] = useState(null);
   const [activeTab, setActiveTab] = useState("my_leads");
   const [leads, setLeads] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadDashboard = useCallback(() => {
@@ -64,7 +66,11 @@ export default function Dashboard() {
 
   function handleTabClick(tab) {
     if (tab === "new_lead") {
-      setShowModal(true);
+      if (isCBM) {
+        setShowAnalytics(true);
+      } else {
+        setShowModal(true);
+      }
       return;
     }
     setActiveTab(tab);
@@ -73,14 +79,6 @@ export default function Dashboard() {
   function handleLeadCreated() {
     loadDashboard();
     loadLeads(activeTab);
-  }
-
-  function handleDelete(lead) {
-    if (!window.confirm(`Delete lead ${lead.lead_code} (${lead.customer_name})? This can't be undone.`)) return;
-    client.delete(`/leads/${lead.id}`).then(() => {
-      loadDashboard();
-      loadLeads(activeTab);
-    });
   }
 
   function handleStatusChange(lead, status) {
@@ -115,7 +113,7 @@ export default function Dashboard() {
             className={tab.key === "new_lead" ? "btn-primary" : activeTab === tab.key ? "tab active" : "tab"}
             onClick={() => handleTabClick(tab.key)}
           >
-            {tab.key === "new_lead" ? "+ New Lead" : tab.label}
+            {tab.key === "new_lead" ? (isCBM ? "Analytics" : "+ New Lead") : tab.label}
           </button>
         ))}
       </nav>
@@ -132,7 +130,7 @@ export default function Dashboard() {
       </section>
 
       <section className="activity-card">
-        <h2>Recent Activity — {isManager ? "All Leads" : "Your Leads"}</h2>
+        <h2>Recent Activity — {isManager ? "All Leads" : isCBM ? "Accepted & Rejected Leads" : "Your Leads"}</h2>
         <div className="table-scroll">
         <table>
           <thead>
@@ -144,12 +142,11 @@ export default function Dashboard() {
               <th>AMOUNT</th>
               <th>STATUS</th>
               <th>UPDATED</th>
-              <th></th>
             </tr>
           </thead>
           <tbody>
             {leads.length === 0 && (
-              <tr><td colSpan={8} className="empty-row">No leads yet — add your first lead.</td></tr>
+              <tr><td colSpan={7} className="empty-row">No leads yet — add your first lead.</td></tr>
             )}
             {leads.map((lead) => (
               <tr key={lead.id}>
@@ -159,7 +156,7 @@ export default function Dashboard() {
                 <td>{lead.lead_type.replace("_", " ")}</td>
                 <td>{formatCurrency(lead.amount)}</td>
                 <td>
-                  {isManager ? (
+                  {canEditStatus ? (
                     <select
                       className={`status-select ${STATUS_CLASS[lead.status]}`}
                       value={lead.status}
@@ -174,11 +171,6 @@ export default function Dashboard() {
                   )}
                 </td>
                 <td>{new Date(lead.updated_at).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
-                <td>
-                  <button type="button" className="row-delete" title="Delete lead" onClick={() => handleDelete(lead)}>
-                    Delete
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
@@ -189,6 +181,10 @@ export default function Dashboard() {
       {showModal && (
         <BulkLeadSheet onClose={() => setShowModal(false)} onCreated={handleLeadCreated} />
       )}
+
+      {showAnalytics && (
+        <AnalyticsPanel breakdown={stats.cluster_status_breakdown} onClose={() => setShowAnalytics(false)} />
+      )}
     </div>
   );
 }
@@ -198,6 +194,81 @@ function StatCard({ label, value, highlight }) {
     <div className={highlight ? "stat-card highlight" : "stat-card"}>
       <span className="stat-label">{label}</span>
       <span className="stat-value">{value}</span>
+    </div>
+  );
+}
+
+function AnalyticsPanel({ breakdown, onClose }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="analytics-card" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-header">
+          <h2>Lead Analytics — Accepted vs Rejected by Cluster</h2>
+          <button type="button" className="btn-secondary" onClick={onClose}>Close</button>
+        </div>
+
+        {(!breakdown || breakdown.length === 0) && (
+          <p className="sheet-hint">No cluster data yet.</p>
+        )}
+
+        <div className="analytics-grid">
+          {(breakdown || []).map((c) => (
+            <ClusterAnalyticsCard key={c.cluster} cluster={c} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClusterAnalyticsCard({ cluster }) {
+  const [branchFilter, setBranchFilter] = useState("all");
+  const hasBranches = cluster.branches && cluster.branches.length > 0;
+  const activeCounts =
+    branchFilter === "all"
+      ? cluster.counts
+      : cluster.branches.find((b) => b.branch === branchFilter)?.counts;
+
+  return (
+    <div className="analytics-cluster">
+      <h3>{cluster.cluster}</h3>
+
+      {hasBranches && (
+        <select
+          className="branch-filter"
+          value={branchFilter}
+          onChange={(e) => setBranchFilter(e.target.value)}
+        >
+          <option value="all">All branches</option>
+          {cluster.branches.map((b) => (
+            <option key={b.branch} value={b.branch}>{b.branch}</option>
+          ))}
+        </select>
+      )}
+
+      <StatusPie counts={activeCounts} />
+    </div>
+  );
+}
+
+function StatusPie({ counts }) {
+  const accepted = counts?.accepted || 0;
+  const rejected = counts?.rejected || 0;
+  const total = accepted + rejected;
+  const acceptedDeg = total === 0 ? 0 : (accepted / total) * 360;
+  const background =
+    total === 0
+      ? "#e5e7eb"
+      : `conic-gradient(#059669 0deg ${acceptedDeg}deg, #b91c1c ${acceptedDeg}deg 360deg)`;
+
+  return (
+    <div className="pie-block">
+      <div className="pie-chart" style={{ background }} />
+      <div className="pie-legend">
+        <span className="pie-legend-item"><span className="pie-dot pie-dot-green" />Accepted: {accepted}</span>
+        <span className="pie-legend-item"><span className="pie-dot pie-dot-red" />Rejected: {rejected}</span>
+        <span className="pie-legend-total">Total: {total}</span>
+      </div>
     </div>
   );
 }

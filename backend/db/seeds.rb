@@ -1,6 +1,16 @@
 puts "Seeding clusters..."
 chennai = Cluster.find_or_create_by!(name: "Chennai Central") { |c| c.location = "Chennai, TN" }
 bengaluru = Cluster.find_or_create_by!(name: "Bengaluru South") { |c| c.location = "Bengaluru, KA" }
+ap = Cluster.find_or_create_by!(name: "AP") { |c| c.location = "Andhra Pradesh" }
+
+puts "Seeding branches..."
+{
+  chennai   => ["Perumbur"],
+  bengaluru => ["KR Puram", "Kundanahalli"],
+  ap        => ["Kurnool", "Kadapa", "Anantapur"]
+}.each do |cluster, branch_names|
+  branch_names.each { |name| Branch.find_or_create_by!(cluster: cluster, name: name) }
+end
 
 puts "Seeding employee..."
 agent = Employee.find_or_create_by!(employee_id: "EMP-2201") do |e|
@@ -9,6 +19,7 @@ agent = Employee.find_or_create_by!(employee_id: "EMP-2201") do |e|
   e.password = "password123"
   e.password_confirmation = "password123"
   e.cluster = chennai
+  e.branch = Branch.find_by(cluster: chennai, name: "Perumbur")
   e.role = :support_agent
 end
 
@@ -17,7 +28,7 @@ leads = [
   { customer_name: "Priya Sundaram",   phone_number: "9840000780", gold_quantity: 25.5, amount: 60_000,  lead_source: :online_call,       lead_type: :new_lead,  status: :follow_up_status },
   { customer_name: "Vijay Anand",      phone_number: "9840000122", gold_quantity: 80.0, amount: 250_000, lead_source: :walk_in,           lead_type: :new_lead,  status: :rejected },
   { customer_name: "Ramesh Kumar",     phone_number: "9840000210", gold_quantity: 45.0, amount: 150_000, lead_source: :customer_referral, lead_type: :new_lead,  status: :accepted },
-  { customer_name: "Lakshmi Venkatesh",phone_number: "9840000780", gold_quantity: 30.0, amount: 80_000,  lead_source: :online_call,       lead_type: :gl,        status: :follow_up_status }
+  { customer_name: "Lakshmi Venkatesh",phone_number: "9840000780", gold_quantity: 30.0, amount: 80_000,  lead_source: :online_call,       lead_type: :take_over, status: :follow_up_status }
 ]
 
 leads.each do |attrs|

@@ -9,7 +9,14 @@ module Api
       #   lead_quality_score   = weighted blend of accepted/rejected/follow-up
       #                          counts, scaled 0-100
       def index
-        leads = current_employee.manager? ? Lead.all : current_employee.leads
+        leads =
+          if current_employee.manager?
+            Lead.all
+          elsif current_employee.cbm?
+            Lead.where(status: [:rejected, :accepted])
+          else
+            current_employee.leads
+          end
 
         today_new_leads       = leads.today.count
         follow_ups            = leads.where(status: :follow_up_status).count
@@ -35,11 +42,42 @@ module Api
             id: lead.id,
             lead_code: "LD-#{10000 + lead.id}",
             customer_name: lead.customer_name,
-            phone_number: lead.masked_phone_number,
+            phone_number: current_employee.cbm? ? lead.phone_number : lead.masked_phone_number,
             lead_type: lead.lead_type,
             amount: lead.amount,
             status: lead.status,
             updated_at: lead.updated_at
+          }
+        end
+
+        # Per-cluster (and per-branch, within each cluster) accepted/rejected
+        # counts, for CBM's analytics view (pie chart with a branch filter).
+        # Scoped through whatever `leads` this role can already see, so it
+        # stays consistent with everything else on this page. Branch counts
+        # only include employees who actually have a branch set — older
+        # employees created before branches existed won't be reflected
+        # there, but still count toward the cluster-level totals.
+        cluster_status_breakdown = Cluster.includes(:branches).order(:name).map do |cluster|
+          cluster_scope = leads.joins(:employee).where(employees: { cluster_id: cluster.id })
+
+          branch_breakdown = cluster.branches.order(:name).map do |branch|
+            branch_scope = leads.joins(:employee).where(employees: { cluster_id: cluster.id, branch_id: branch.id })
+            {
+              branch: branch.name,
+              counts: {
+                accepted: branch_scope.where(status: :accepted).count,
+                rejected: branch_scope.where(status: :rejected).count
+              }
+            }
+          end
+
+          {
+            cluster: cluster.name,
+            counts: {
+              accepted: cluster_scope.where(status: :accepted).count,
+              rejected: cluster_scope.where(status: :rejected).count
+            },
+            branches: branch_breakdown
           }
         end
 
@@ -52,7 +90,8 @@ module Api
           total_lead_value: total_lead_value,
           genuine_lead_percent: genuine_lead_percent,
           lead_quality_score: lead_quality_score,
-          recent_activity: recent
+          recent_activity: recent,
+          cluster_status_breakdown: cluster_status_breakdown
         }
       end
     end

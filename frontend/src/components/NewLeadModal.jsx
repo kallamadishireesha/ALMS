@@ -11,7 +11,6 @@ const LEAD_TYPES = [
   { value: "new_lead", label: "New Lead" },
   { value: "follow_up", label: "Follow-up" },
   { value: "take_over", label: "Take Over" },
-  { value: "gl", label: "GL (Genuine Lead)" },
 ];
 
 export default function NewLeadModal({ onClose, onCreated }) {

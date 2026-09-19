@@ -10,7 +10,16 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_01_01_000004) do
+ActiveRecord::Schema[7.1].define(version: 2026_01_01_000007) do
+  create_table "branches", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
+    t.string "name", null: false
+    t.bigint "cluster_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cluster_id", "name"], name: "index_branches_on_cluster_id_and_name", unique: true
+    t.index ["cluster_id"], name: "index_branches_on_cluster_id"
+  end
+
   create_table "clusters", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.string "name", null: false
     t.string "location", null: false
@@ -28,6 +37,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_01_000004) do
     t.bigint "cluster_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "branch_id"
+    t.index ["branch_id"], name: "index_employees_on_branch_id"
     t.index ["cluster_id"], name: "index_employees_on_cluster_id"
     t.index ["email"], name: "index_employees_on_email", unique: true
     t.index ["employee_id"], name: "index_employees_on_employee_id", unique: true
@@ -49,6 +60,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_01_000004) do
     t.index ["status"], name: "index_leads_on_status"
   end
 
+  add_foreign_key "branches", "clusters"
+  add_foreign_key "employees", "branches"
   add_foreign_key "employees", "clusters"
   add_foreign_key "leads", "employees"
 end

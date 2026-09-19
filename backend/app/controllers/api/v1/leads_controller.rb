@@ -9,7 +9,7 @@ module Api
         leads = leads.where(lead_type: params[:lead_type]) if params[:lead_type].present?
         leads = leads.where(status: params[:status]) if params[:status].present?
 
-        render json: leads.map { |lead| lead_json(lead) }
+        render json: leads.map { |lead| lead_json(lead, mask: !current_employee.cbm?) }
       end
 
       def show
@@ -90,9 +90,16 @@ module Api
       end
 
       # Managers oversee the whole pipeline, so they can see/edit every
-      # lead; everyone else is scoped to only the leads they created.
+      # lead. CBM reviews closed-out leads (accepted or rejected) across
+      # all agents. Everyone else is scoped to only the leads they created.
       def visible_leads_scope
-        current_employee.manager? ? Lead.all : current_employee.leads
+        if current_employee.manager?
+          Lead.all
+        elsif current_employee.cbm?
+          Lead.where(status: [:rejected, :accepted])
+        else
+          current_employee.leads
+        end
       end
 
       def lead_params

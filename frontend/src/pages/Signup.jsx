@@ -10,6 +10,7 @@ export default function Signup() {
   const [form, setForm] = useState({
     name: "",
     cluster_id: "",
+    branch_id: "",
     employee_id: "",
     password: "",
     password_confirmation: "",
@@ -34,11 +35,13 @@ export default function Signup() {
     return (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
   }
 
+  const selectedCluster = clusters.find((c) => String(c.id) === String(form.cluster_id));
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
 
-    const requiredValues = [form.name, form.cluster_id, form.employee_id, form.password, form.password_confirmation, form.role];
+    const requiredValues = [form.name, form.cluster_id, form.branch_id, form.employee_id, form.password, form.password_confirmation, form.role];
     if (requiredValues.some((v) => !String(v).trim())) {
       setError("Please fill all the details.");
       return;
@@ -77,10 +80,34 @@ export default function Signup() {
 
         <label>
           Cluster
-          <select value={form.cluster_id} onChange={update("cluster_id")} disabled={clusters.length === 0}>
+          <select
+            value={form.cluster_id}
+            onChange={(e) => setForm((f) => ({ ...f, cluster_id: e.target.value, branch_id: "" }))}
+            disabled={clusters.length === 0}
+          >
             <option value="" disabled>{clusters.length === 0 ? "No clusters available" : "Select cluster"}</option>
             {clusters.map((c) => (
               <option key={c.id} value={c.id}>{c.name} — {c.location}</option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Branch
+          <select
+            value={form.branch_id}
+            onChange={update("branch_id")}
+            disabled={!selectedCluster || selectedCluster.branches.length === 0}
+          >
+            <option value="" disabled>
+              {!selectedCluster
+                ? "Select a cluster first"
+                : selectedCluster.branches.length === 0
+                ? "No branches available"
+                : "Select branch"}
+            </option>
+            {selectedCluster?.branches.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
         </label>
@@ -90,6 +117,7 @@ export default function Signup() {
           <select value={form.role} onChange={update("role")}>
             <option value="support_agent">Support Agent</option>
             <option value="manager">Manager</option>
+            <option value="cbm">CBM</option>
           </select>
         </label>
 
